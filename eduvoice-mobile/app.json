@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "EduVoice AI",
+    "slug": "eduvoice-ai",
+    "version": "0.1.0",
+    "sdkVersion": "51.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.eduvoice.ai",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "EduVoice utilise le micro pour analyser vos prestations orales."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0A0E1A"
+      },
+      "package": "com.eduvoice.ai",
+      "permissions": ["android.permission.RECORD_AUDIO"]
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-av",
+        {
+          "microphonePermission": "EduVoice utilise le micro pour analyser vos prestations orales."
+        }
+      ]
+    ],
+    "scheme": "eduvoice",
+    "extra": {
+      "router": { "origin": false }
+    }
+  }
+}
