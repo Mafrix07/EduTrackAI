@@ -86,6 +86,20 @@ export type RecordingStatus =
 
 export type TabRoute = "planning" | "vocal" | "dashboard" | "viewer";
 
+// ─── Auth Types ────────────────────────────────────────────────────────────────
+
+export interface User {
+  id: number;
+  name: string;
+  email: string;
+}
+
+export interface AuthTokens {
+  access: string;
+  refresh: string;
+  user: User;
+}
+
 // ─── API Types ─────────────────────────────────────────────────────────────────
 
 export interface AnalyzeRequest {

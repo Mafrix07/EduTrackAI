@@ -51,6 +51,7 @@ class AnalyzeView(APIView):
                 topic_title=topic,
                 level=level,
                 duration_seconds=duration_seconds,
+                transcript=result.transcript,
                 status="done",
                 from_fallback=result.from_fallback,
                 processing_time_ms=result.processing_time_ms,

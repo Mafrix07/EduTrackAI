@@ -8,6 +8,8 @@ import type {
   ProgressEntry,
   UserStats,
   RecordingStatus,
+  User,
+  AuthTokens,
 } from "../types";
 
 // ─── Topics Store ──────────────────────────────────────────────────────────────
@@ -135,13 +137,29 @@ function computeStats(entries: ProgressEntry[]): UserStats {
     else break;
   }
 
+  let longestStreak = currentStreak;
+  if (uniqueDates.length > 1) {
+    let tempStreak = 1;
+    for (let i = 1; i < uniqueDates.length; i++) {
+      const prevMs = new Date(uniqueDates[i - 1] + "T00:00:00Z").getTime();
+      const currMs = new Date(uniqueDates[i] + "T00:00:00Z").getTime();
+      if (Math.round((prevMs - currMs) / 86400000) === 1) {
+        tempStreak++;
+      } else {
+        longestStreak = Math.max(longestStreak, tempStreak);
+        tempStreak = 1;
+      }
+    }
+    longestStreak = Math.max(longestStreak, tempStreak);
+  }
+
   return {
     totalRecordings: total,
     avgContentAccuracy,
     avgPaceWpm,
     totalFillers,
     currentStreak,
-    longestStreak: Math.max(currentStreak, 3),
+    longestStreak,
     lastActivity: entries[0]?.date,
   };
 }
@@ -208,6 +226,54 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
       if (raw) {
         const entries = JSON.parse(raw) as ProgressEntry[];
         set({ entries, stats: computeStats(entries) });
+      }
+    } catch (_) {}
+  },
+}));
+
+// ─── Auth Store ────────────────────────────────────────────────────────────────
+
+const AUTH_STORAGE_KEY = "eduvoice_auth";
+
+interface AuthState {
+  accessToken: string | null;
+  refreshToken: string | null;
+  user: User | null;
+  isLoggedIn: boolean;
+  login: (tokens: AuthTokens) => Promise<void>;
+  logout: () => Promise<void>;
+  loadFromStorage: () => Promise<void>;
+}
+
+export const useAuthStore = create<AuthState>((set) => ({
+  accessToken: null,
+  refreshToken: null,
+  user: null,
+  isLoggedIn: false,
+  login: async (tokens) => {
+    await AsyncStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(tokens));
+    set({
+      accessToken: tokens.access,
+      refreshToken: tokens.refresh,
+      user: tokens.user,
+      isLoggedIn: true,
+    });
+  },
+  logout: async () => {
+    await AsyncStorage.removeItem(AUTH_STORAGE_KEY);
+    set({ accessToken: null, refreshToken: null, user: null, isLoggedIn: false });
+  },
+  loadFromStorage: async () => {
+    try {
+      const raw = await AsyncStorage.getItem(AUTH_STORAGE_KEY);
+      if (raw) {
+        const tokens = JSON.parse(raw) as AuthTokens;
+        set({
+          accessToken: tokens.access,
+          refreshToken: tokens.refresh,
+          user: tokens.user,
+          isLoggedIn: true,
+        });
       }
     } catch (_) {}
   },

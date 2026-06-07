@@ -1,108 +1,206 @@
-import React, { Suspense, useRef, useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import * as Device from "expo-device";
 import { Colors, Typography, Spacing, Radius, cardStyle } from "../../lib/theme";
 
-// ─── 3D Scene (lazy to avoid crash if unsupported) ─────────────────────────────
-// We conditionally import to avoid build errors on low-end devices.
+// ─── Data ──────────────────────────────────────────────────────────────────────
 
-let Canvas: any = null;
-let ThreeScene: any = null;
+interface ConceptFiche {
+  keyEquation?: string;
+  keyFacts: { label: string; value: string }[];
+  examTip: string;
+  typicalQuestion: string;
+}
 
-try {
-  // Dynamic import simulation — in real build use React.lazy or conditional require
-  // Canvas = require("@react-three/fiber/native").Canvas;
-  // ThreeScene = require("./NeuralScene").default;
-  // For this POC template, we leave as null to always show the fallback
-  // which will be replaced with real 3D imports in the actual build
-} catch (_) {}
+interface ConceptItem {
+  id: string;
+  title: string;
+  subject: string;
+  emoji: string;
+  color: string;
+  description: string;
+  layers: string[];
+  fiche: ConceptFiche;
+}
 
-// ─── Concept Cards (2D Fallback content) ──────────────────────────────────────
-
-const CONCEPTS = [
+const CONCEPTS: ConceptItem[] = [
   {
     id: "1",
-    title: "Réseau de neurones",
-    emoji: "🧠",
-    color: Colors.primary,
+    title: "La photosynthèse",
+    subject: "SVT • Terminale",
+    emoji: "🌿",
+    color: Colors.success,
     description:
-      "Un réseau de neurones artificiels imite le cerveau humain : des nœuds interconnectés (neurones) transmettent des signaux pondérés pour apprendre des patterns.",
-    layers: ["Entrée", "Caché ×3", "Sortie"],
-    connections: 847,
+      "Processus par lequel les végétaux chlorophylliens synthétisent du glucose à partir de CO₂, d'eau et d'énergie lumineuse. Se déroule dans les chloroplastes en deux phases : claire et sombre.",
+    layers: ["Lumière solaire", "Chloroplaste", "CO₂ + H₂O", "Glucose + O₂"],
+    fiche: {
+      keyEquation: "6CO₂ + 6H₂O + lumière → C₆H₁₂O₆ + 6O₂",
+      keyFacts: [
+        { label: "Lieu", value: "Chloroplastes" },
+        { label: "Pigment", value: "Chlorophylle a et b" },
+        { label: "Phase claire", value: "Thylakoïdes → ATP + NADPH₂" },
+        { label: "Phase sombre", value: "Stroma → Cycle de Calvin" },
+        { label: "Produit final", value: "Glucose (C₆H₁₂O₆)" },
+      ],
+      examTip:
+        "Distinguer systématiquement phase claire (thylakoïdes, besoin de lumière) et phase sombre (stroma, peut se dérouler sans lumière directe).",
+      typicalQuestion:
+        "Décrivez les deux phases de la photosynthèse en précisant leur lieu et leurs réactifs/produits.",
+    },
   },
   {
     id: "2",
-    title: "Apprentissage par renforcement",
-    emoji: "🎮",
-    color: Colors.accent,
+    title: "La Révolution française",
+    subject: "Histoire • 1ère",
+    emoji: "🏛️",
+    color: Colors.primary,
     description:
-      "Un agent explore un environnement, reçoit des récompenses ou pénalités, et optimise sa politique de décision via l'équation de Bellman.",
-    layers: ["Agent", "Environnement", "Récompense"],
-    connections: 0,
+      "Période de bouleversements politiques radicaux en France (1789-1799) qui abolit la monarchie absolue et proclama les droits de l'homme. Influence déterminante sur les démocraties modernes.",
+    layers: ["Crise financière", "États généraux", "Prise de la Bastille", "DDHC", "Ière République"],
+    fiche: {
+      keyFacts: [
+        { label: "États généraux", value: "5 mai 1789" },
+        { label: "Prise de la Bastille", value: "14 juillet 1789" },
+        { label: "DDHC adoptée", value: "26 août 1789" },
+        { label: "Ière République", value: "22 septembre 1792" },
+        { label: "Fin (Bonaparte)", value: "9 novembre 1799" },
+      ],
+      examTip:
+        "Mémoriser les 5 dates clés et associer chaque phase à ses acteurs : Louis XVI, Robespierre (Terreur), puis Bonaparte.",
+      typicalQuestion:
+        "Analysez les causes et les principales étapes de la Révolution française de 1789.",
+    },
   },
   {
     id: "3",
-    title: "Transformer & Attention",
-    emoji: "⚡",
+    title: "Les fonctions affines",
+    subject: "Mathématiques • 2nde",
+    emoji: "📐",
+    color: Colors.accent,
+    description:
+      "Fonctions de la forme f(x) = ax + b, représentées par des droites dans le plan. Le coefficient a est la pente et b l'ordonnée à l'origine. Fondamentales pour l'algèbre et l'analyse.",
+    layers: ["f(x) = ax + b", "Pente a", "Ordonnée b", "Droite (D)"],
+    fiche: {
+      keyEquation: "f(x) = ax + b  (a ≠ 0)",
+      keyFacts: [
+        { label: "a > 0", value: "Droite croissante" },
+        { label: "a < 0", value: "Droite décroissante" },
+        { label: "Point (0 ; b)", value: "Intersection axe des ordonnées" },
+        { label: "Zéro de f", value: "x = −b / a" },
+        { label: "a = 0", value: "Fonction constante (droite horizontale)" },
+      ],
+      examTip:
+        "Toujours vérifier le signe de a pour le sens de variation. Calculer f(0) = b pour tracer le premier point. Trouver x tel que f(x) = 0 pour l'intersection avec l'axe des abscisses.",
+      typicalQuestion:
+        "Déterminez l'équation de la droite passant par A(1 ; 3) et B(4 ; 9), puis tracez-la.",
+    },
+  },
+  {
+    id: "4",
+    title: "La respiration cellulaire",
+    subject: "SVT • 1ère",
+    emoji: "🔬",
     color: Colors.accentWarm,
     description:
-      "Mécanisme d'auto-attention qui pondère l'importance de chaque token par rapport aux autres — la base de GPT, BERT, et LLaMA.",
-    layers: ["Encodeur", "Multi-Head Attention", "Décodeur"],
-    connections: 512,
+      "Processus catabolique dans les mitochondries : dégradation du glucose en présence d'O₂ pour produire de l'ATP. Réaction globalement inverse de la photosynthèse.",
+    layers: ["Glucose + O₂", "Glycolyse", "Cycle de Krebs", "Chaîne respiratoire", "38 ATP"],
+    fiche: {
+      keyEquation: "C₆H₁₂O₆ + 6O₂ → 6CO₂ + 6H₂O + 38 ATP",
+      keyFacts: [
+        { label: "Glycolyse", value: "Cytoplasme → 2 pyruvates + 2 ATP" },
+        { label: "Cycle de Krebs", value: "Matrice mito. → NADH + CO₂" },
+        { label: "Chaîne resp.", value: "Crêtes mito. → 34 ATP" },
+        { label: "Rendement total", value: "38 ATP / molécule de glucose" },
+        { label: "Déchet", value: "CO₂ + H₂O" },
+      ],
+      examTip:
+        "Différencier les 3 étapes et leurs localisations. La glycolyse est anaérobie ; les 2 autres étapes requièrent O₂ (aérobies).",
+      typicalQuestion:
+        "Expliquez les trois étapes de la respiration cellulaire et donnez le bilan énergétique global.",
+    },
+  },
+  {
+    id: "5",
+    title: "Les indépendances africaines",
+    subject: "Histoire • Terminale",
+    emoji: "🌍",
+    color: Colors.warning,
+    description:
+      "Vague de décolonisation des années 1950-1960 qui permit à la majorité des pays africains d'accéder à la souveraineté. 1960 est surnommée « Année de l'Afrique ». Le Togo obtint son indépendance le 27 avril 1960.",
+    layers: ["Colonisation", "Mouvements nationalistes", "Loi Defferre 1956", "1960 : Indépendances", "OUA 1963"],
+    fiche: {
+      keyFacts: [
+        { label: "Indép. du Togo", value: "27 avril 1960" },
+        { label: "« Année de l'Afrique »", value: "17 pays indépendants en 1960" },
+        { label: "Conférence de Bandung", value: "1955 — tiers-monde non-aligné" },
+        { label: "Loi-cadre Defferre", value: "1956 — autonomie interne" },
+        { label: "OUA fondée", value: "25 mai 1963, Addis-Abeba" },
+      ],
+      examTip:
+        "Connaître impérativement la date d'indépendance du Togo (27 avril 1960). Citer 3 leaders : Kwame Nkrumah (Ghana), Sylvanus Olympio (Togo), Félix Houphouët-Boigny (Côte d'Ivoire).",
+      typicalQuestion:
+        "Analysez les causes et les modalités de l'accès à l'indépendance des pays d'Afrique subsaharienne dans les années 1960.",
+    },
+  },
+  {
+    id: "6",
+    title: "L'argumentation",
+    subject: "Français • Terminale",
+    emoji: "✍️",
+    color: "#8B5CF6",
+    description:
+      "Art de convaincre par le raisonnement (logos) et de persuader par les émotions (pathos). Structure toute dissertation : thèse — antithèse — synthèse. Base de l'oral et de l'écrit du BAC.",
+    layers: ["Thèse", "Argument", "Exemple", "Contre-argument", "Concession → Synthèse"],
+    fiche: {
+      keyFacts: [
+        { label: "Logos", value: "Raisonnement logique, preuves, faits" },
+        { label: "Ethos", value: "Crédibilité, autorité de l'orateur" },
+        { label: "Pathos", value: "Appel aux émotions du lecteur" },
+        { label: "Plan dissert.", value: "Thèse → Antithèse → Synthèse" },
+        { label: "Connecteurs clés", value: "Certes / Or / Mais / Donc / Ainsi" },
+      ],
+      examTip:
+        "Chaque argument doit être suivi d'un exemple concret tiré des œuvres étudiées. La concession montre la nuance : elle renforce la thèse finale, ne l'affaiblit pas.",
+      typicalQuestion:
+        "Dans quelle mesure la littérature peut-elle changer le monde ? Répondez en vous appuyant sur des œuvres étudiées.",
+    },
   },
 ];
 
-// ─── Animated Neural Net (SVG-based 2D fallback) ──────────────────────────────
+// ─── Steps Flow (replaces neural-net diagram) ─────────────────────────────────
 
-function NeuralNetDiagram({ color }: { color: string }) {
-  const layers = [[3, 0], [4, 1], [4, 2], [2, 3]]; // [neurons, layerIdx]
-
-  // Simple ASCII-art style SVG representation
+function StepsFlow({ steps, color }: { steps: string[]; color: string }) {
   return (
-    <View style={styles.diagramContainer}>
-      <View style={styles.diagramRow}>
-        {[3, 4, 4, 2].map((neurons, li) => (
-          <View key={li} style={styles.diagramLayer}>
-            {Array.from({ length: neurons }).map((_, ni) => (
-              <View
-                key={ni}
-                style={[
-                  styles.neuron,
-                  {
-                    backgroundColor: color + "33",
-                    borderColor: color,
-                    opacity: 0.6 + (li / 3) * 0.4,
-                  },
-                ]}
-              />
-            ))}
+    <View style={styles.stepsFlow}>
+      {steps.map((step, i) => (
+        <React.Fragment key={i}>
+          <View style={[styles.stepPill, { borderColor: color + "66", backgroundColor: color + "11" }]}>
+            <Text style={[styles.stepText, { color }]}>{step}</Text>
           </View>
-        ))}
-      </View>
-      <Text style={[styles.diagramLabel, { color }]}>
-        Vue schématique 2D
-      </Text>
+          {i < steps.length - 1 && (
+            <Ionicons name="arrow-forward-outline" size={11} color={color + "99"} />
+          )}
+        </React.Fragment>
+      ))}
     </View>
   );
 }
 
-// ─── Concept Detail Card ───────────────────────────────────────────────────────
+// ─── Concept Card (Concepts tab) ──────────────────────────────────────────────
 
 function ConceptCard({
   concept,
   isActive,
   onPress,
 }: {
-  concept: typeof CONCEPTS[0];
+  concept: ConceptItem;
   isActive: boolean;
   onPress: () => void;
 }) {
@@ -110,21 +208,13 @@ function ConceptCard({
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.85}
-      style={[
-        cardStyle,
-        styles.conceptCard,
-        isActive && { borderColor: concept.color + "88" },
-      ]}
+      style={[cardStyle, styles.conceptCard, isActive && { borderColor: concept.color + "88" }]}
     >
       <View style={styles.conceptHeader}>
         <Text style={styles.conceptEmoji}>{concept.emoji}</Text>
         <View style={{ flex: 1 }}>
           <Text style={styles.conceptTitle}>{concept.title}</Text>
-          {concept.connections > 0 && (
-            <Text style={[styles.conceptMeta, { color: concept.color }]}>
-              ~{concept.connections} connexions
-            </Text>
-          )}
+          <Text style={[styles.conceptSubject, { color: concept.color }]}>{concept.subject}</Text>
         </View>
         <Ionicons
           name={isActive ? "chevron-up" : "chevron-down"}
@@ -135,27 +225,11 @@ function ConceptCard({
 
       {isActive && (
         <View style={styles.conceptExpanded}>
-          {/* 2D visualization */}
-          <NeuralNetDiagram color={concept.color} />
-
-          {/* Layers */}
-          <View style={styles.layersRow}>
-            {concept.layers.map((l, i) => (
-              <View key={i} style={[styles.layerChip, { borderColor: concept.color + "66" }]}>
-                <Text style={[styles.layerChipText, { color: concept.color }]}>{l}</Text>
-              </View>
-            ))}
-          </View>
-
-          {/* Description */}
+          <StepsFlow steps={concept.layers} color={concept.color} />
           <Text style={styles.conceptDescription}>{concept.description}</Text>
-
-          {/* 3D availability notice */}
-          <View style={styles.threeDNotice}>
-            <Ionicons name="cube-outline" size={14} color={Colors.textMuted} />
-            <Text style={styles.threeDNoticeText}>
-              Vue 3D interactive disponible sur iOS/Android (OpenGL requis)
-            </Text>
+          <View style={[styles.examTipBox, { borderLeftColor: concept.color }]}>
+            <Text style={styles.examTipLabel}>Conseil examen</Text>
+            <Text style={styles.examTipText}>{concept.fiche.examTip}</Text>
           </View>
         </View>
       )}
@@ -163,124 +237,168 @@ function ConceptCard({
   );
 }
 
-// ─── Topic Concept Explainer ───────────────────────────────────────────────────
+// ─── Fiche Express (Fiche express tab) ────────────────────────────────────────
 
-function ConceptExplainer() {
-  const [activeId, setActiveId] = useState<string>("1");
-
+function FicheExpress({ concept }: { concept: ConceptItem }) {
+  const { fiche } = concept;
   return (
-    <View>
-      {CONCEPTS.map((c) => (
-        <ConceptCard
-          key={c.id}
-          concept={c}
-          isActive={activeId === c.id}
-          onPress={() => setActiveId(activeId === c.id ? "" : c.id)}
-        />
-      ))}
-    </View>
-  );
-}
-
-// ─── 3D Scene Placeholder ──────────────────────────────────────────────────────
-
-function ThreeDPlaceholder() {
-  return (
-    <View style={styles.threeDBox}>
-      <View style={styles.threeDInner}>
-        {/* Animated cube representation using pure RN */}
-        <View style={styles.cubeOuter}>
-          <View style={[styles.cubeFace, styles.cubeFront]} />
-          <View style={[styles.cubeFace, styles.cubeTop]} />
-          <View style={[styles.cubeFace, styles.cubeRight]} />
-        </View>
-        <Text style={styles.threeDTitle}>Viewer 3D</Text>
-        <Text style={styles.threeDSubtitle}>
-          @react-three/fiber · GLB models
-        </Text>
-        <View style={styles.threeDSteps}>
-          <Text style={styles.threeDStep}>① Sélectionner un concept</Text>
-          <Text style={styles.threeDStep}>② Visualiser en 3D interactif</Text>
-          <Text style={styles.threeDStep}>③ Faire pivoter · Zoomer</Text>
+    <ScrollView
+      style={{ flex: 1 }}
+      contentContainerStyle={styles.ficheScroll}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* Header */}
+      <View style={[styles.ficheHeader, { borderColor: concept.color + "55" }]}>
+        <Text style={styles.ficheEmoji}>{concept.emoji}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.ficheTitle}>{concept.title}</Text>
+          <Text style={[styles.ficheSubject, { color: concept.color }]}>{concept.subject}</Text>
         </View>
       </View>
-    </View>
+
+      {/* Équation / formule clé */}
+      {fiche.keyEquation && (
+        <View style={[styles.equationBox, { borderColor: concept.color + "44" }]}>
+          <Text style={styles.equationLabel}>Formule clé</Text>
+          <Text style={[styles.equationText, { color: concept.color }]}>{fiche.keyEquation}</Text>
+        </View>
+      )}
+
+      {/* Tableau des faits */}
+      <Text style={styles.ficheSection}>Faits essentiels</Text>
+      <View style={[cardStyle, { padding: 0, overflow: "hidden" }]}>
+        {fiche.keyFacts.map(({ label, value }, i) => (
+          <View
+            key={i}
+            style={[
+              styles.factRow,
+              i < fiche.keyFacts.length - 1 && styles.factRowBorder,
+            ]}
+          >
+            <Text style={styles.factLabel}>{label}</Text>
+            <Text style={styles.factValue}>{value}</Text>
+          </View>
+        ))}
+      </View>
+
+      {/* Conseil examen */}
+      <View style={[styles.tipCard, { borderLeftColor: concept.color }]}>
+        <View style={styles.tipHeader}>
+          <Ionicons name="bulb-outline" size={14} color={concept.color} />
+          <Text style={[styles.tipTitle, { color: concept.color }]}>Conseil pour l'examen</Text>
+        </View>
+        <Text style={styles.tipBody}>{fiche.examTip}</Text>
+      </View>
+
+      {/* Question type */}
+      <View style={styles.questionCard}>
+        <View style={styles.tipHeader}>
+          <Ionicons name="help-circle-outline" size={14} color={Colors.textMuted} />
+          <Text style={styles.questionLabel}>Question type</Text>
+        </View>
+        <Text style={styles.questionText}>« {fiche.typicalQuestion} »</Text>
+      </View>
+
+      <View style={{ height: 40 }} />
+    </ScrollView>
   );
 }
 
-// ─── Main Viewer Screen ────────────────────────────────────────────────────────
+// ─── Main Screen ───────────────────────────────────────────────────────────────
 
 export default function ViewerScreen() {
-  const [is3DCapable, setIs3DCapable] = useState(false);
-  const [tab, setTab] = useState<"concepts" | "3d">("concepts");
+  const [activeConceptId, setActiveConceptId] = useState("1");
+  const [tab, setTab] = useState<"concepts" | "fiche">("concepts");
 
-  useEffect(() => {
-    // Check device 3D capability
-    const check = async () => {
-      const isPhysical = Device.isDevice;
-      const os = Platform.OS;
-      setIs3DCapable(isPhysical && (os === "ios" || os === "android"));
-    };
-    check();
-  }, []);
+  const selectedConcept = CONCEPTS.find((c) => c.id === activeConceptId) ?? CONCEPTS[0];
 
   return (
     <SafeAreaView style={styles.safe}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Concepts IA</Text>
+        <Text style={styles.screenTitle}>Concepts & Fiches</Text>
         <View style={styles.tabRow}>
           <TouchableOpacity
             onPress={() => setTab("concepts")}
             style={[styles.tab, tab === "concepts" && styles.tabActive]}
           >
-            <Ionicons name="book-outline" size={14} color={tab === "concepts" ? Colors.primary : Colors.textMuted} />
+            <Ionicons
+              name="book-outline"
+              size={14}
+              color={tab === "concepts" ? Colors.primary : Colors.textMuted}
+            />
             <Text style={[styles.tabText, tab === "concepts" && { color: Colors.primary }]}>
               Concepts
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => setTab("3d")}
-            style={[styles.tab, tab === "3d" && styles.tabActive]}
+            onPress={() => setTab("fiche")}
+            style={[styles.tab, tab === "fiche" && styles.tabActive]}
           >
-            <Ionicons name="cube-outline" size={14} color={tab === "3d" ? Colors.accent : Colors.textMuted} />
-            <Text style={[styles.tabText, tab === "3d" && { color: Colors.accent }]}>
-              Vue 3D
+            <Ionicons
+              name="document-text-outline"
+              size={14}
+              color={tab === "fiche" ? Colors.accent : Colors.textMuted}
+            />
+            <Text style={[styles.tabText, tab === "fiche" && { color: Colors.accent }]}>
+              Fiche express
             </Text>
           </TouchableOpacity>
         </View>
       </View>
 
       {tab === "concepts" ? (
-        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          showsVerticalScrollIndicator={false}
+        >
           <Text style={styles.subtitle}>
-            Cliquez sur un concept pour le visualiser. Chaque carte s'ouvre pour révéler
-            l'architecture interne et les explications clés.
+            Tapez sur un concept pour le développer. Les fiches express sont disponibles dans l'onglet dédié.
           </Text>
-          <ConceptExplainer />
+          {CONCEPTS.map((c) => (
+            <ConceptCard
+              key={c.id}
+              concept={c}
+              isActive={activeConceptId === c.id}
+              onPress={() => setActiveConceptId(activeConceptId === c.id ? "" : c.id)}
+            />
+          ))}
           <View style={{ height: 40 }} />
         </ScrollView>
       ) : (
-        <View style={styles.threeDContainer}>
-          {is3DCapable && Canvas ? (
-            <Suspense fallback={<ThreeDPlaceholder />}>
-              {/* Real 3D scene would go here:
-              <Canvas>
-                <ThreeScene />
-              </Canvas> */}
-              <ThreeDPlaceholder />
-            </Suspense>
-          ) : (
-            <ThreeDPlaceholder />
-          )}
-          <View style={styles.fallbackNote}>
-            <Ionicons name="information-circle-outline" size={14} color={Colors.textMuted} />
-            <Text style={styles.fallbackNoteText}>
-              {is3DCapable
-                ? "Viewer 3D : activez OpenGL dans les paramètres de l'app"
-                : "Viewer 3D disponible sur appareil physique iOS/Android"}
-            </Text>
-          </View>
+        <View style={styles.ficheContainer}>
+          {/* Concept selector */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.selectorRow}
+          >
+            {CONCEPTS.map((c) => (
+              <TouchableOpacity
+                key={c.id}
+                onPress={() => setActiveConceptId(c.id)}
+                style={[
+                  styles.selectorChip,
+                  activeConceptId === c.id && {
+                    backgroundColor: c.color + "22",
+                    borderColor: c.color,
+                  },
+                ]}
+              >
+                <Text style={styles.selectorEmoji}>{c.emoji}</Text>
+                <Text
+                  style={[
+                    styles.selectorText,
+                    { color: activeConceptId === c.id ? c.color : Colors.textMuted },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {c.title}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+          <FicheExpress concept={selectedConcept} />
         </View>
       )}
     </SafeAreaView>
@@ -291,12 +409,13 @@ export default function ViewerScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.bg },
+
   header: {
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
     paddingBottom: Spacing.sm,
   },
-  title: {
+  screenTitle: {
     fontFamily: Typography.display,
     fontSize: Typography.sizes["2xl"],
     color: Colors.text,
@@ -324,148 +443,176 @@ const styles = StyleSheet.create({
     borderRadius: Radius.sm,
     gap: 4,
   },
-  tabActive: {
-    backgroundColor: Colors.bgCard,
-  },
-  tabText: {
-    color: Colors.textMuted,
-    fontSize: Typography.sizes.sm,
-    fontWeight: "600",
-  },
+  tabActive: { backgroundColor: Colors.bgCard },
+  tabText: { color: Colors.textMuted, fontSize: Typography.sizes.sm, fontWeight: "600" },
+
   scroll: { padding: Spacing.lg },
-  conceptCard: {
-    marginBottom: Spacing.sm,
-  },
-  conceptHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.sm,
-  },
+
+  // Concept card
+  conceptCard: { marginBottom: Spacing.sm },
+  conceptHeader: { flexDirection: "row", alignItems: "center", gap: Spacing.sm },
   conceptEmoji: { fontSize: 24 },
-  conceptTitle: {
-    color: Colors.text,
-    fontSize: Typography.sizes.md,
-    fontWeight: "600",
-  },
-  conceptMeta: {
-    fontSize: Typography.sizes.xs,
-    fontFamily: Typography.mono,
-  },
+  conceptTitle: { color: Colors.text, fontSize: Typography.sizes.md, fontWeight: "600" },
+  conceptSubject: { fontSize: Typography.sizes.xs, fontWeight: "600", marginTop: 1 },
   conceptExpanded: {
     marginTop: Spacing.md,
     paddingTop: Spacing.md,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
-  },
-  diagramContainer: { alignItems: "center", marginBottom: Spacing.md },
-  diagramRow: { flexDirection: "row", gap: Spacing.lg, alignItems: "center" },
-  diagramLayer: {
-    flexDirection: "column",
-    gap: Spacing.xs,
-    alignItems: "center",
-  },
-  neuron: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 1.5,
-  },
-  diagramLabel: {
-    fontSize: Typography.sizes.xs,
-    marginTop: Spacing.sm,
-    fontFamily: Typography.mono,
-  },
-  layersRow: {
-    flexDirection: "row",
-    gap: Spacing.xs,
-    flexWrap: "wrap",
-    marginBottom: Spacing.sm,
-  },
-  layerChip: {
-    borderWidth: 1,
-    borderRadius: Radius.sm,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 3,
-  },
-  layerChipText: {
-    fontSize: Typography.sizes.xs,
-    fontWeight: "600",
+    gap: Spacing.sm,
   },
   conceptDescription: {
     color: Colors.textSub,
     fontSize: Typography.sizes.sm,
     lineHeight: 20,
-    marginBottom: Spacing.sm,
   },
-  threeDNotice: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
+  examTipBox: {
+    borderLeftWidth: 3,
+    paddingLeft: Spacing.sm,
+    paddingVertical: 4,
   },
-  threeDNoticeText: {
+  examTipLabel: {
     color: Colors.textMuted,
     fontSize: Typography.sizes.xs,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 3,
   },
-  threeDContainer: { flex: 1, alignItems: "center" },
-  threeDBox: {
-    flex: 1,
-    width: "100%",
+  examTipText: { color: Colors.textSub, fontSize: Typography.sizes.sm, lineHeight: 18 },
+
+  // Steps flow
+  stepsFlow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
     alignItems: "center",
-    justifyContent: "center",
+    gap: 5,
   },
-  threeDInner: { alignItems: "center" },
-  cubeOuter: {
-    width: 80,
-    height: 80,
-    position: "relative",
-    marginBottom: Spacing.lg,
+  stepPill: {
+    borderWidth: 1,
+    borderRadius: Radius.full,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
-  cubeFace: {
-    position: "absolute",
-    width: 60,
-    height: 60,
-    borderWidth: 1.5,
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primary + "15",
+  stepText: { fontSize: Typography.sizes.xs, fontWeight: "600" },
+
+  // Fiche express container
+  ficheContainer: { flex: 1 },
+  selectorRow: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    gap: Spacing.sm,
   },
-  cubeFront: { left: 0, top: 10 },
-  cubeTop: {
-    left: 10,
-    top: 0,
-    opacity: 0.6,
+  selectorChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: Radius.full,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: Colors.bgCard,
   },
-  cubeRight: {
-    left: 20,
-    top: 20,
-    opacity: 0.3,
+  selectorEmoji: { fontSize: 14 },
+  selectorText: { fontSize: Typography.sizes.xs, fontWeight: "600", maxWidth: 110 },
+
+  // Fiche card
+  ficheScroll: { paddingHorizontal: Spacing.lg },
+  ficheHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md,
+    borderWidth: 1,
+    borderRadius: Radius.lg,
+    padding: Spacing.md,
+    backgroundColor: Colors.bgCard,
+    marginBottom: Spacing.md,
   },
-  threeDTitle: {
+  ficheEmoji: { fontSize: 36 },
+  ficheTitle: {
     fontFamily: Typography.display,
-    fontSize: Typography.sizes.xl,
+    fontSize: Typography.sizes.lg,
     color: Colors.text,
+  },
+  ficheSubject: { fontSize: Typography.sizes.sm, fontWeight: "600", marginTop: 2 },
+
+  equationBox: {
+    borderWidth: 1,
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    backgroundColor: Colors.bgCard,
+    marginBottom: Spacing.md,
+    alignItems: "center",
+  },
+  equationLabel: {
+    color: Colors.textMuted,
+    fontSize: Typography.sizes.xs,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  equationText: {
+    fontFamily: Typography.mono,
+    fontSize: Typography.sizes.base,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+
+  ficheSection: {
+    color: Colors.textMuted,
+    fontSize: Typography.sizes.xs,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
     marginBottom: Spacing.xs,
   },
-  threeDSubtitle: {
-    fontFamily: Typography.mono,
-    fontSize: Typography.sizes.sm,
-    color: Colors.primary,
-    marginBottom: Spacing.lg,
-  },
-  threeDSteps: { gap: Spacing.sm, alignItems: "flex-start" },
-  threeDStep: {
-    color: Colors.textSub,
-    fontSize: Typography.sizes.sm,
-    fontFamily: Typography.mono,
-  },
-  fallbackNote: {
+  factRow: {
     flexDirection: "row",
-    alignItems: "center",
-    padding: Spacing.md,
-    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
+    gap: Spacing.sm,
   },
-  fallbackNoteText: {
+  factRowBorder: { borderBottomWidth: 1, borderBottomColor: Colors.border },
+  factLabel: {
+    width: 110,
+    color: Colors.textMuted,
+    fontSize: Typography.sizes.sm,
+    fontWeight: "600",
+    flexShrink: 0,
+  },
+  factValue: { flex: 1, color: Colors.text, fontSize: Typography.sizes.sm },
+
+  tipCard: {
+    borderLeftWidth: 3,
+    backgroundColor: Colors.bgCard,
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    marginTop: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  tipHeader: { flexDirection: "row", alignItems: "center", gap: 5, marginBottom: 6 },
+  tipTitle: { fontSize: Typography.sizes.xs, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5 },
+  tipBody: { color: Colors.textSub, fontSize: Typography.sizes.sm, lineHeight: 20 },
+
+  questionCard: {
+    ...cardStyle,
+    marginTop: Spacing.md,
+  },
+  questionLabel: {
     color: Colors.textMuted,
     fontSize: Typography.sizes.xs,
-    flex: 1,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  questionText: {
+    color: Colors.text,
+    fontSize: Typography.sizes.sm,
+    lineHeight: 20,
+    fontStyle: "italic",
+    marginTop: 6,
   },
 });

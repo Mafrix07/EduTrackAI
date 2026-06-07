@@ -40,6 +40,7 @@ class VoiceAnalysis:
     from_fallback: bool = False
     from_cache: bool = False
     processing_time_ms: Optional[int] = None
+    transcript: str = ""
 
     def model_dump(self) -> dict:
         return dataclasses.asdict(self)
@@ -258,4 +259,5 @@ def run_analysis_pipeline(
         cache.set(cache_key, result.model_dump(), timeout=settings.AI_CACHE_TTL)
 
     result.processing_time_ms = int((time.time() - t0) * 1000)
+    result.transcript = transcript
     return result

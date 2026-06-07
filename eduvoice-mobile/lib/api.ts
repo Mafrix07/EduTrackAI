@@ -111,6 +111,49 @@ export async function fetchTopics(): Promise<import("../types").Topic[] | null> 
   }
 }
 
+export async function createTopic(
+  data: {
+    title: string;
+    subject: string;
+    level: "lycee" | "superieur" | "professionnel";
+    deadline?: string;
+    coefficient?: number;
+  },
+  token?: string
+): Promise<import("../types").Topic | null> {
+  try {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    const res = await withTimeout(
+      fetch(`${API_BASE}/api/topics/`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          title: data.title,
+          subject: data.subject,
+          level: data.level,
+          deadline: data.deadline ?? null,
+          coefficient: data.coefficient ?? null,
+        }),
+      }),
+      FETCH_TIMEOUT_MS
+    );
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const t = await res.json();
+    return {
+      id: String(t.id),
+      title: t.title,
+      subject: t.subject,
+      level: t.level,
+      deadline: t.deadline ?? undefined,
+      coefficient: t.coefficient ?? undefined,
+      createdAt: t.created_at,
+    };
+  } catch {
+    return null;
+  }
+}
+
 // ─── Audio Helpers ──────────────────────────────────────────────────────────────
 
 export function formatDuration(seconds: number): string {

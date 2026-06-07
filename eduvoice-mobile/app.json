@@ -6,6 +6,7 @@
     "sdkVersion": "51.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
+    "icon": "./assets/icon.png",
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.eduvoice.ai",
@@ -15,6 +16,7 @@
     },
     "android": {
       "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#0A0E1A"
       },
       "package": "com.eduvoice.ai",
